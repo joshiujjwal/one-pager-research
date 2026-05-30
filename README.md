@@ -144,3 +144,27 @@ PRs must include:
 - Test output showing green before and after
 - Description of what changed and why
 - Screenshot / curl output as evidence for UI/API changes
+
+---
+
+## 🚀 Improvement Proposals
+
+### First-Principles Analysis
+- **The fundamental job-to-be-done is reducing the cognitive cost of evaluating whether a source is worth reading in full** — the one-pager format is a delivery mechanism, not the goal; optimising for "did the user click through to read more / cite this?" is a better north-star metric than generation speed.
+- **LLM summarisation is lossy compression**: GPT-4o has no access to the actual experimental data, reproducibility details, or supplementary materials in a paper; the Methodology and Limitations sections it generates are reconstructed, not extracted, which can mislead readers who treat them as ground truth.
+- **URL/PDF ingestion is the hardest reliability problem**, not the AI layer — paywalled journals, JavaScript-rendered pages, and DRM-protected PDFs will fail silently; the scraping layer needs explicit failure modes documented.
+- **The structured output schema (TL;DR, Key Findings, etc.) is a UI assumption baked into the backend** — different disciplines (legal, clinical, engineering) need different section schemas; a schema-per-domain approach would dramatically widen the addressable market.
+
+### Key Risks & Assumptions
+- **Assumes GPT-4o context window is sufficient for all inputs** — long papers (100+ pages) or multi-document inputs will exceed the window; chunking strategies affect summary coherence and are not yet addressed in the README.
+- **Playwright-based scraping will be fragile in production** — many academic sites (Nature, Springer, IEEE) actively block headless browsers; the system needs a fallback chain (direct fetch → Playwright → user-provided text).
+- **Assumes users trust AI-generated summaries enough to act on them** — hallucination risk is high for quantitative claims (statistics, p-values, sample sizes); without inline citations pointing to source text, accuracy cannot be verified.
+- **No mention of caching or cost controls** — repeated GPT-4o calls on the same URL are both expensive and slow; without a cache layer, the cost per active user is unbounded.
+
+### Concrete Improvement Ideas
+1. **Add per-claim source anchoring** — after generating each bullet in Key Findings, include the verbatim quote and page/section reference from the source; this transforms the tool from a trust-me summariser into a verifiable research assistant (highest trust and retention impact).
+2. **Implement a response cache keyed on content hash** — cache summaries by SHA-256 of the raw document text; eliminates redundant LLM calls for the same paper and enables sharing without re-generation cost.
+3. **Build a domain-specific schema selector** — offer 3–4 pre-built section schemas (academic paper, legal brief, news article, patent); let users define custom schemas; this unlocks B2B use-cases (law firms, consulting, pharma) without changing the core pipeline.
+4. **Add a graceful degradation chain for ingestion failures** — implement ranked fallback: direct HTTP fetch → Playwright → Jina Reader API → prompt user to paste text; log failure reason per URL to guide future improvements.
+5. **Surface a confidence / completeness indicator** — use the LLM to self-evaluate: "How much of the source document was accessible and processed?" Flag summaries generated from <50 % of the content as partial.
+6. **Add export formats** — one-click export to Notion, Markdown, and PDF; research workflows live in note-taking tools, not web apps; meeting users where they work drives retention.
